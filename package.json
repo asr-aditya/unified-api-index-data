@@ -1,0 +1,17 @@
+{
+  "name": "unified-api-index-data",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "export": "node scripts/export.mjs",
+    "validate": "node scripts/validate.mjs"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}

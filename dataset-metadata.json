@@ -1,0 +1,15 @@
+{
+  "version": "0.1.0",
+  "release_date": "2026-08-31",
+  "creator": "Unified API Index",
+  "canonical_site": "https://unified-api-comparison.info",
+  "license": "CC-BY-4.0",
+  "article_count": 23,
+  "source_count": 233,
+  "files": {
+    "research_catalog_csv": "research-catalog.csv",
+    "research_catalog_jsonl": "research-catalog.jsonl",
+    "source_register_csv": "source-register.csv",
+    "source_register_jsonl": "source-register.jsonl"
+  }
+}
