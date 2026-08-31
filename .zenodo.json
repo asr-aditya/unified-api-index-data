@@ -1,0 +1,26 @@
+{
+  "title": "Unified API Index Research Catalog and Source Register, v0.1.0",
+  "upload_type": "dataset",
+  "description": "Machine-readable research catalog and cited-source register from Unified API Index. Article topics and entities describe article scope; their presence on a source-register row does not prove source-level support for every topic, entity, or claim.",
+  "creators": [
+    {
+      "name": "Unified API Index",
+      "type": "Organizational"
+    }
+  ],
+  "license": "CC-BY-4.0",
+  "version": "0.1.0",
+  "publication_date": "2026-08-31",
+  "related_identifiers": [
+    {
+      "identifier": "https://unified-api-comparison.info",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-website"
+    },
+    {
+      "identifier": "https://github.com/asr-aditya/unified-api-index-data",
+      "relation": "isIdenticalTo",
+      "resource_type": "dataset"
+    }
+  ]
+}

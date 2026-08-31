@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this dataset, please cite it as below."
+title: Unified API Index Research Catalog and Source Register
+type: dataset
+authors:
+  - name: Unified API Index
+    type: organization
+version: 0.1.0
+date-released: 2026-08-31
+license: CC-BY-4.0
+repository-code: https://github.com/asr-aditya/unified-api-index-data

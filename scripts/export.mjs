@@ -73,12 +73,18 @@ async function exportDataset({ source, output, metadata }) {
   return releaseMetadata;
 }
 
-try {
-  const metadata = await exportDataset(parseArgs(process.argv.slice(2)));
-  process.stdout.write(`Exported ${metadata.article_count} articles and ${metadata.source_count} sources.\n`);
-} catch (error) {
-  process.stderr.write(`${error.message}\n`);
-  process.exitCode = 1;
+async function main() {
+  try {
+    const metadata = await exportDataset(parseArgs(process.argv.slice(2)));
+    process.stdout.write(`Exported ${metadata.article_count} articles and ${metadata.source_count} sources.\n`);
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  }
 }
 
-export { exportDataset, parseArgs };
+if (import.meta.main) {
+  await main();
+}
+
+export { exportDataset, main, parseArgs };

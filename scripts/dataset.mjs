@@ -135,17 +135,22 @@ export function validateDataset(dataset) {
   }
   const articleIds = new Set();
   const articleUrls = new Set();
+  const articleUrlById = new Map();
   for (const article of dataset.catalog) {
     if (articleIds.has(article.article_id)) fail(`duplicate article ID: ${article.article_id}`);
     if (articleUrls.has(article.canonical_url)) fail(`duplicate article URL: ${article.canonical_url}`);
     articleIds.add(article.article_id);
     articleUrls.add(article.canonical_url);
+    articleUrlById.set(article.article_id, article.canonical_url);
   }
   const sourceIds = new Set();
   for (const source of dataset.source_register) {
     if (sourceIds.has(source.source_record_id)) fail(`duplicate source ID: ${source.source_record_id}`);
     sourceIds.add(source.source_record_id);
     if (!articleIds.has(source.article_id)) fail(`orphaned source article ID: ${source.article_id}`);
+    if (source.article_url !== articleUrlById.get(source.article_id)) {
+      fail(`source article URL does not match article ID: ${source.source_record_id}`);
+    }
   }
   return dataset;
 }
