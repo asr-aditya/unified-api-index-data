@@ -31,6 +31,9 @@ const REQUIRED_FILES = [
   'data/source-register.jsonl',
 ];
 const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'release', 'tmp']);
+const CATALOG_ARRAY_COLUMNS = new Set(['topics', 'entities']);
+const SOURCE_REGISTER_ARRAY_COLUMNS = new Set(['article_topics', 'article_entities']);
+const CATALOG_INTEGER_COLUMNS = new Set(['source_count']);
 
 function fail(message) {
   throw new Error(message);
@@ -55,11 +58,107 @@ function parseJsonl(text, name) {
   }
 }
 
-function validateCsvHeader(text, columns, name) {
+function parseCsvDataset(text, columns, arrayColumns, integerColumns, name) {
   if (!text.endsWith('\n')) fail(`${name} must end with a newline`);
-  const [header] = text.split('\n');
-  const expected = columns.join(',');
-  if (header !== expected) fail(`${name} must have exact CSV header: ${expected}`);
+  const rows = [];
+  let row = [];
+  let value = '';
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quoted) {
+      if (character === '"') {
+        if (text[index + 1] === '"') {
+          value += '"';
+          index += 1;
+        } else {
+          quoted = false;
+        }
+      } else {
+        value += character;
+      }
+      continue;
+    }
+    if (character === '"') {
+      if (value !== '') fail(`${name} contains an invalid quoted CSV field`);
+      quoted = true;
+    } else if (character === ',') {
+      row.push(value);
+      value = '';
+    } else if (character === '\n') {
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = '';
+    } else if (character === '\r') {
+      fail(`${name} must use LF line endings`);
+    } else {
+      value += character;
+    }
+  }
+  if (quoted || value !== '' || row.length !== 0) fail(`${name} contains an incomplete CSV record`);
+  if (rows.length < 2) fail(`${name} must include a header and at least one row`);
+  const expectedHeader = columns.join(',');
+  if (rows[0].join(',') !== expectedHeader) fail(`${name} must have exact CSV header: ${expectedHeader}`);
+
+  return rows.slice(1).map((values, rowIndex) => {
+    if (values.length !== columns.length) fail(`${name} row ${rowIndex + 1} has an invalid column count`);
+    const record = {};
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+      const column = columns[columnIndex];
+      const raw = values[columnIndex];
+      if (arrayColumns.has(column)) {
+        try {
+          record[column] = JSON.parse(raw);
+        } catch {
+          fail(`${name} ${column} must be a JSON array`);
+        }
+        if (!Array.isArray(record[column]) || record[column].some((entry) => typeof entry !== 'string')) {
+          fail(`${name} ${column} must be an array of strings`);
+        }
+      } else if (integerColumns.has(column)) {
+        if (!/^(?:0|[1-9]\d*)$/.test(raw)) fail(`${name} ${column} must be an integer`);
+        record[column] = Number(raw);
+      } else {
+        record[column] = raw;
+      }
+    }
+    return record;
+  });
+}
+
+function validateRecordShape(rows, columns, arrayColumns, integerColumns, name) {
+  for (const [rowIndex, row] of rows.entries()) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) fail(`${name} row ${rowIndex + 1} must be an object`);
+    const keys = Object.keys(row).sort();
+    const expectedKeys = [...columns].sort();
+    if (keys.length !== expectedKeys.length || keys.some((key, index) => key !== expectedKeys[index])) {
+      fail(`${name} row ${rowIndex + 1} has an invalid schema`);
+    }
+    for (const column of columns) {
+      if (arrayColumns.has(column)) {
+        if (!Array.isArray(row[column]) || row[column].some((entry) => typeof entry !== 'string')) {
+          fail(`${name} ${column} must be an array of strings`);
+        }
+      } else if (integerColumns.has(column)) {
+        if (!Number.isInteger(row[column])) fail(`${name} ${column} must be an integer`);
+      } else if (typeof row[column] !== 'string') {
+        fail(`${name} ${column} must be a string`);
+      }
+    }
+  }
+}
+
+function validateCsvAgreement(csvRows, jsonlRows, columns, name) {
+  if (csvRows.length !== jsonlRows.length) fail(`${name} row count disagrees with JSONL`);
+  for (let index = 0; index < csvRows.length; index += 1) {
+    for (const column of columns) {
+      if (JSON.stringify(csvRows[index][column]) !== JSON.stringify(jsonlRows[index][column])) {
+        fail(`${name} row ${index + 1} disagrees with JSONL`);
+      }
+    }
+  }
 }
 
 function httpUrl(value, name) {
@@ -75,6 +174,8 @@ function httpUrl(value, name) {
 }
 
 function validateData(catalog, sourceRegister) {
+  validateRecordShape(catalog, CATALOG_COLUMNS, CATALOG_ARRAY_COLUMNS, CATALOG_INTEGER_COLUMNS, 'research catalog JSONL');
+  validateRecordShape(sourceRegister, SOURCE_REGISTER_COLUMNS, SOURCE_REGISTER_ARRAY_COLUMNS, new Set(), 'source register JSONL');
   validateDataset({ catalog, source_register: sourceRegister });
   const sourcesPerArticle = new Map();
   const catalogById = new Map();
@@ -162,8 +263,8 @@ function validateCitation(citation) {
   requireEqual(String(citation['date-released']), RELEASE_DATE, 'citation release date');
   requireEqual(citation.license, LICENSE, 'citation license');
   requireEqual(citation['repository-code'], REPOSITORY_URL, 'citation repository URL');
-  if (!Array.isArray(citation.authors) || citation.authors.length !== 1 || citation.authors[0]?.name !== AUTHOR || citation.authors[0]?.type !== 'organization') {
-    fail(`citation author must be ${AUTHOR} organization`);
+  if (!Array.isArray(citation.authors) || citation.authors.length !== 1 || citation.authors[0]?.name !== AUTHOR) {
+    fail(`citation author must be ${AUTHOR}`);
   }
 }
 
@@ -173,8 +274,8 @@ function validateZenodo(zenodo) {
   requireEqual(zenodo.version, VERSION, 'Zenodo version');
   requireEqual(zenodo.publication_date, RELEASE_DATE, 'Zenodo publication date');
   requireEqual(zenodo.license, LICENSE, 'Zenodo license');
-  if (!Array.isArray(zenodo.creators) || zenodo.creators.length !== 1 || zenodo.creators[0]?.name !== AUTHOR || zenodo.creators[0]?.type !== 'Organizational') {
-    fail(`Zenodo creator must be ${AUTHOR} organizational`);
+  if (!Array.isArray(zenodo.creators) || zenodo.creators.length !== 1 || zenodo.creators[0]?.name !== AUTHOR) {
+    fail(`Zenodo creator must be ${AUTHOR}`);
   }
   requireText(zenodo.description, 'does not prove source-level support', 'Zenodo description');
   const identifiers = new Set((zenodo.related_identifiers ?? []).map(({ identifier }) => identifier));
@@ -207,9 +308,11 @@ export async function validateReleaseFiles(root) {
   }
   const catalog = parseJsonl(catalogJsonl, 'research catalog JSONL');
   const sourceRegister = parseJsonl(sourceJsonl, 'source register JSONL');
+  const catalogCsvRows = parseCsvDataset(catalogCsv, CATALOG_COLUMNS, CATALOG_ARRAY_COLUMNS, CATALOG_INTEGER_COLUMNS, 'research catalog CSV');
+  const sourceCsvRows = parseCsvDataset(sourceCsv, SOURCE_REGISTER_COLUMNS, SOURCE_REGISTER_ARRAY_COLUMNS, new Set(), 'source register CSV');
 
-  validateCsvHeader(catalogCsv, CATALOG_COLUMNS, 'research catalog CSV');
-  validateCsvHeader(sourceCsv, SOURCE_REGISTER_COLUMNS, 'source register CSV');
+  validateCsvAgreement(catalogCsvRows, catalog, CATALOG_COLUMNS, 'research catalog CSV');
+  validateCsvAgreement(sourceCsvRows, sourceRegister, SOURCE_REGISTER_COLUMNS, 'source register CSV');
   validateMetadata(metadata);
   if (metadata.article_count !== catalog.length) fail('metadata article count does not match research catalog JSONL');
   if (metadata.source_count !== sourceRegister.length) fail('metadata source count does not match source register JSONL');

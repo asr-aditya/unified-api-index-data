@@ -4,8 +4,7 @@
   "description": "Machine-readable research catalog and cited-source register from Unified API Index. Article topics and entities describe article scope; their presence on a source-register row does not prove source-level support for every topic, entity, or claim.",
   "creators": [
     {
-      "name": "Unified API Index",
-      "type": "Organizational"
+      "name": "Unified API Index"
     }
   ],
   "license": "CC-BY-4.0",

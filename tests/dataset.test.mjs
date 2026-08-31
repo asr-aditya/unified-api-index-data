@@ -7,7 +7,9 @@ import { spawnSync } from 'node:child_process';
 
 import {
   buildDataset,
+  CATALOG_COLUMNS,
   parseApprovedArticle,
+  SOURCE_REGISTER_COLUMNS,
   toCsv,
   toJsonl,
   validateDataset,
@@ -128,6 +130,10 @@ async function withTemporaryRelease(change, assertion) {
   }
 }
 
+async function jsonlRows(root, filename) {
+  return (await readFile(path.join(root, 'data', filename), 'utf8')).trim().split('\n').map(JSON.parse);
+}
+
 test('validates the checked-in release', async () => {
   await assert.doesNotReject(() => validateReleaseFiles(repositoryRoot));
 });
@@ -156,6 +162,20 @@ test('rejects a citation with a different organizational author', async () => {
   );
 });
 
+test('accepts a CFF entity author and legacy Zenodo creator without type fields', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const citation = path.join(root, 'CITATION.cff');
+      const zenodo = path.join(root, '.zenodo.json');
+      await writeFile(citation, (await readFile(citation, 'utf8')).replace('    type: organization\n', ''));
+      const metadata = JSON.parse(await readFile(zenodo, 'utf8'));
+      delete metadata.creators[0].type;
+      await writeFile(zenodo, `${JSON.stringify(metadata, null, 2)}\n`);
+    },
+    async (root) => assert.doesNotReject(() => validateReleaseFiles(root)),
+  );
+});
+
 test('rejects metadata counts that disagree with JSONL', async () => {
   await withTemporaryRelease(
     async (root) => {
@@ -174,8 +194,52 @@ test('rejects orphaned source article IDs', async () => {
       const rows = (await readFile(file, 'utf8')).trim().split('\n').map(JSON.parse);
       rows[0].article_id = 'uai-article-missing';
       await writeFile(file, `${rows.map(JSON.stringify).join('\n')}\n`);
+      await writeFile(path.join(root, 'data', 'source-register.csv'), toCsv(rows, SOURCE_REGISTER_COLUMNS));
     },
     async (root) => assert.rejects(() => validateReleaseFiles(root), /orphaned source article ID/i),
+  );
+});
+
+test('rejects a truncated catalog CSV', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const rows = await jsonlRows(root, 'research-catalog.jsonl');
+      await writeFile(path.join(root, 'data', 'research-catalog.csv'), toCsv(rows.slice(0, -1), CATALOG_COLUMNS));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /research catalog CSV.*row count/i),
+  );
+});
+
+test('rejects a stale catalog CSV row', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const rows = await jsonlRows(root, 'research-catalog.jsonl');
+      rows[0].summary = 'Stale catalog summary.';
+      await writeFile(path.join(root, 'data', 'research-catalog.csv'), toCsv(rows, CATALOG_COLUMNS));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /research catalog CSV.*disagrees/i),
+  );
+});
+
+test('rejects a catalog CSV with a non-integer source count', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const rows = await jsonlRows(root, 'research-catalog.jsonl');
+      rows[0].source_count = 'not-a-number';
+      await writeFile(path.join(root, 'data', 'research-catalog.csv'), toCsv(rows, CATALOG_COLUMNS));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /source_count.*integer/i),
+  );
+});
+
+test('rejects a source CSV with disagreeing article-topic arrays', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const rows = await jsonlRows(root, 'source-register.jsonl');
+      rows[0].article_topics = ['Stale topic'];
+      await writeFile(path.join(root, 'data', 'source-register.csv'), toCsv(rows, SOURCE_REGISTER_COLUMNS));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /source register CSV.*disagrees/i),
   );
 });
 
