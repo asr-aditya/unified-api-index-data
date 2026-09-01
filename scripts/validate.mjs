@@ -18,6 +18,11 @@ const REPOSITORY_URL = 'https://github.com/asr-aditya/unified-api-index-data';
 const DOI = '10.5281/zenodo.22226503';
 const DOI_URL = `https://doi.org/${DOI}`;
 const ZENODO_RECORD_URL = 'https://zenodo.org/records/22226503';
+const RELEASE_DOCUMENT_URLS = [
+  `${REPOSITORY_URL}/blob/v0.1.0/DATA_DICTIONARY.md`,
+  `${REPOSITORY_URL}/blob/v0.1.0/METHODOLOGY.md`,
+  `${REPOSITORY_URL}/blob/v0.1.0/CITATION.cff`,
+];
 const REQUIRED_FILES = [
   'README.md',
   'METHODOLOGY.md',
@@ -309,6 +314,12 @@ function validateZenodo(zenodo) {
 }
 
 function validateDatasetCard(card) {
+  if (/\]\(\.\.\//.test(card)) {
+    fail('Hugging Face Dataset Card links must not use relative parent paths');
+  }
+  for (const url of RELEASE_DOCUMENT_URLS) {
+    requireText(card, url, 'Hugging Face versioned document links');
+  }
   const match = card.match(/^---\n([\s\S]*?)\n---\n/);
   if (!match) fail('Hugging Face Dataset Card must start with YAML front matter');
   let metadata;

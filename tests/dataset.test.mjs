@@ -188,6 +188,20 @@ test('rejects a Dataset Card with more than one default viewer config', async ()
   );
 });
 
+test('rejects relative parent links in the Hugging Face Dataset Card', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const file = path.join(root, 'huggingface', 'README.md');
+      const card = await readFile(file, 'utf8');
+      await writeFile(file, card.replace(
+        'https://github.com/asr-aditya/unified-api-index-data/blob/v0.1.0/DATA_DICTIONARY.md',
+        '../DATA_DICTIONARY.md',
+      ));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /relative parent paths/i),
+  );
+});
+
 test('rejects a release missing its license', async () => {
   await withTemporaryRelease(
     (root) => rm(path.join(root, 'LICENSE')),
