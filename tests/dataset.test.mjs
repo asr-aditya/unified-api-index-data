@@ -375,11 +375,17 @@ test('export CLI reads only top-level markdown and writes complete deterministic
   }
 });
 
-test('importing the exporter has no CLI side effects and invalid CLI arguments fail', () => {
-  const imported = spawnSync(node, ['--input-type=module', '--eval', `await import(${JSON.stringify(path.join(repositoryRoot, 'scripts', 'export.mjs'))});`], { encoding: 'utf8' });
-  assert.equal(imported.status, 0, imported.stderr);
-  assert.equal(imported.stdout, '');
-  assert.equal(imported.stderr, '');
+test('CLI entrypoints execute directly and remain inert when imported', () => {
+  for (const script of ['export.mjs', 'validate.mjs']) {
+    const imported = spawnSync(node, ['--input-type=module', '--eval', `await import(${JSON.stringify(path.join(repositoryRoot, 'scripts', script))});`], { encoding: 'utf8' });
+    assert.equal(imported.status, 0, imported.stderr);
+    assert.equal(imported.stdout, '');
+    assert.equal(imported.stderr, '');
+  }
+
+  const validated = spawnSync(node, [path.join(repositoryRoot, 'scripts', 'validate.mjs')], { encoding: 'utf8' });
+  assert.equal(validated.status, 0, validated.stderr);
+  assert.match(validated.stdout, /Validated 23 articles and 233 sources/);
 
   const invalid = spawnSync(node, [path.join(repositoryRoot, 'scripts', 'export.mjs'), '--source'], { encoding: 'utf8' });
   assert.equal(invalid.status, 1);
