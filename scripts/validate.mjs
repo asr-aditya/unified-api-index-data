@@ -34,6 +34,17 @@ const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'release', 'tmp']);
 const CATALOG_ARRAY_COLUMNS = new Set(['topics', 'entities']);
 const SOURCE_REGISTER_ARRAY_COLUMNS = new Set(['article_topics', 'article_entities']);
 const CATALOG_INTEGER_COLUMNS = new Set(['source_count']);
+const HUGGING_FACE_CONFIGS = [
+  {
+    config_name: 'research-catalog',
+    data_files: [{ split: 'train', path: 'data/research-catalog.jsonl' }],
+    default: true,
+  },
+  {
+    config_name: 'source-register',
+    data_files: [{ split: 'train', path: 'data/source-register.jsonl' }],
+  },
+];
 
 function fail(message) {
   throw new Error(message);
@@ -282,6 +293,20 @@ function validateZenodo(zenodo) {
   if (!identifiers.has(CANONICAL_ORIGIN) || !identifiers.has(REPOSITORY_URL)) fail('Zenodo related identifiers must include public canonical and repository URLs');
 }
 
+function validateDatasetCard(card) {
+  const match = card.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!match) fail('Hugging Face Dataset Card must start with YAML front matter');
+  let metadata;
+  try {
+    metadata = parse(match[1]);
+  } catch (error) {
+    fail(`Hugging Face Dataset Card metadata is invalid: ${error.message}`);
+  }
+  if (JSON.stringify(metadata?.configs) !== JSON.stringify(HUGGING_FACE_CONFIGS)) {
+    fail('Hugging Face Dataset Card configs must define only the research-catalog and source-register JSONL train splits, with only research-catalog marked as default');
+  }
+}
+
 export async function validateReleaseFiles(root) {
   if (typeof root !== 'string' || root === '') fail('release root is required');
   for (const file of REQUIRED_FILES) {
@@ -330,6 +355,7 @@ export async function validateReleaseFiles(root) {
   requireText(card, 'license: cc-by-4.0', 'Hugging Face Dataset Card');
   requireText(card, CANONICAL_ORIGIN, 'Hugging Face canonical site');
   requireText(card, REPOSITORY_URL, 'Hugging Face repository URL');
+  validateDatasetCard(card);
   await validateNoUnsafeContent(root);
   return { article_count: catalog.length, source_count: sourceRegister.length };
 }

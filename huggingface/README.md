@@ -10,6 +10,16 @@ tags:
   - ats
   - benefits
   - research
+configs:
+  - config_name: research-catalog
+    data_files:
+      - split: train
+        path: data/research-catalog.jsonl
+    default: true
+  - config_name: source-register
+    data_files:
+      - split: train
+        path: data/source-register.jsonl
 ---
 
 # Unified API Index Research Catalog and Source Register

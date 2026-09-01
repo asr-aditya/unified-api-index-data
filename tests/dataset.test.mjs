@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { parse } from 'yaml';
 
 import {
   buildDataset,
@@ -134,8 +135,57 @@ async function jsonlRows(root, filename) {
   return (await readFile(path.join(root, 'data', filename), 'utf8')).trim().split('\n').map(JSON.parse);
 }
 
+function datasetCardMetadata(text) {
+  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  assert.ok(match, 'Dataset Card must start with YAML front matter');
+  return parse(match[1]);
+}
+
 test('validates the checked-in release', async () => {
   await assert.doesNotReject(() => validateReleaseFiles(repositoryRoot));
+});
+
+test('Dataset Card declares the exact two JSONL-only viewer configurations', async () => {
+  const card = await readFile(path.join(repositoryRoot, 'huggingface', 'README.md'), 'utf8');
+  assert.deepEqual(datasetCardMetadata(card).configs, [
+    {
+      config_name: 'research-catalog',
+      data_files: [{ split: 'train', path: 'data/research-catalog.jsonl' }],
+      default: true,
+    },
+    {
+      config_name: 'source-register',
+      data_files: [{ split: 'train', path: 'data/source-register.jsonl' }],
+    },
+  ]);
+});
+
+test('rejects a Dataset Card that mixes source-register rows into the default viewer config', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const file = path.join(root, 'huggingface', 'README.md');
+      const card = await readFile(file, 'utf8');
+      await writeFile(file, card.replace(
+        'path: data/research-catalog.jsonl',
+        'path: data/source-register.jsonl',
+      ));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /Dataset Card configs/i),
+  );
+});
+
+test('rejects a Dataset Card with more than one default viewer config', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const file = path.join(root, 'huggingface', 'README.md');
+      const card = await readFile(file, 'utf8');
+      await writeFile(file, card.replace(
+        '  - config_name: source-register',
+        '  - config_name: source-register\n    default: true',
+      ));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /Dataset Card configs/i),
+  );
 });
 
 test('rejects a release missing its license', async () => {
