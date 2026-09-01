@@ -28,4 +28,4 @@ For corrections, email [info@unified-api-comparison.info](mailto:info@unified-ap
 
 ## Citation and license
 
-Please cite this dataset using [CITATION.cff](CITATION.cff). It is licensed under [Creative Commons Attribution 4.0 International](LICENSE) (CC BY 4.0).
+Please cite this dataset using [CITATION.cff](CITATION.cff). The archived release is available from Zenodo at [10.5281/zenodo.22226503](https://doi.org/10.5281/zenodo.22226503). It is licensed under [Creative Commons Attribution 4.0 International](LICENSE) (CC BY 4.0).

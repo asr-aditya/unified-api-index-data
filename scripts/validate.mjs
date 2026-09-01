@@ -15,6 +15,9 @@ const VERSION = '0.1.0';
 const RELEASE_DATE = '2026-08-31';
 const LICENSE = 'CC-BY-4.0';
 const REPOSITORY_URL = 'https://github.com/asr-aditya/unified-api-index-data';
+const DOI = '10.5281/zenodo.22226503';
+const DOI_URL = `https://doi.org/${DOI}`;
+const ZENODO_RECORD_URL = 'https://zenodo.org/records/22226503';
 const REQUIRED_FILES = [
   'README.md',
   'METHODOLOGY.md',
@@ -56,6 +59,13 @@ function requireEqual(actual, expected, name) {
 
 function requireText(text, expected, name) {
   if (!text.includes(expected)) fail(`${name} must include ${expected}`);
+}
+
+function requireDoi(value, name) {
+  if (typeof value !== 'string' || !/^10\.\d{4,9}\/[A-Z0-9][A-Z0-9._;()/:+-]*$/i.test(value)) {
+    fail(`${name} must be a valid DOI`);
+  }
+  return value;
 }
 
 function parseJsonl(text, name) {
@@ -257,6 +267,9 @@ function validateMetadata(metadata) {
   requireEqual(metadata.creator, AUTHOR, 'metadata creator');
   requireEqual(metadata.canonical_site, CANONICAL_ORIGIN, 'metadata canonical site');
   requireEqual(metadata.license, LICENSE, 'metadata license');
+  requireDoi(metadata.doi, 'metadata DOI');
+  requireEqual(metadata.doi, DOI, 'metadata DOI');
+  requireEqual(metadata.zenodo_url, ZENODO_RECORD_URL, 'metadata Zenodo URL');
   const expectedFiles = {
     research_catalog_csv: 'research-catalog.csv',
     research_catalog_jsonl: 'research-catalog.jsonl',
@@ -273,6 +286,8 @@ function validateCitation(citation) {
   requireEqual(citation.version, VERSION, 'citation version');
   requireEqual(String(citation['date-released']), RELEASE_DATE, 'citation release date');
   requireEqual(citation.license, LICENSE, 'citation license');
+  requireDoi(citation.doi, 'citation DOI');
+  requireEqual(citation.doi, DOI, 'citation DOI');
   requireEqual(citation['repository-code'], REPOSITORY_URL, 'citation repository URL');
   if (!Array.isArray(citation.authors) || citation.authors.length !== 1 || citation.authors[0]?.name !== AUTHOR) {
     fail(`citation author must be ${AUTHOR}`);
@@ -343,11 +358,13 @@ export async function validateReleaseFiles(root) {
   if (metadata.source_count !== sourceRegister.length) fail('metadata source count does not match source register JSONL');
   validateData(catalog, sourceRegister);
   validateCitation(citation);
+  requireEqual(citation.doi, metadata.doi, 'citation and metadata DOI');
   validateZenodo(zenodo);
   requireText(readme, CANONICAL_ORIGIN, 'README canonical site');
   requireText(readme, REPOSITORY_URL, 'README repository URL');
   requireText(readme, 'info@unified-api-comparison.info', 'README corrections contact');
   requireText(readme, 'CC BY 4.0', 'README license');
+  requireText(readme, DOI_URL, 'README DOI');
   requireText(methodology, 'Define the research question', 'methodology');
   requireText(dictionary, 'does **not** prove source-level support', 'data dictionary limitation');
   if (!changelog.startsWith('0.1.0 — 2026-08-31')) fail('changelog must start with the 0.1.0 release');
@@ -355,6 +372,7 @@ export async function validateReleaseFiles(root) {
   requireText(card, 'license: cc-by-4.0', 'Hugging Face Dataset Card');
   requireText(card, CANONICAL_ORIGIN, 'Hugging Face canonical site');
   requireText(card, REPOSITORY_URL, 'Hugging Face repository URL');
+  requireText(card, DOI_URL, 'Hugging Face DOI');
   validateDatasetCard(card);
   await validateNoUnsafeContent(root);
   return { article_count: catalog.length, source_count: sourceRegister.length };

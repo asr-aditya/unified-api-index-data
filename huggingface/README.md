@@ -34,4 +34,4 @@ The research catalog has one row per published article; the source register has 
 
 Article topics and entities define article scope. They do not prove that a given source supports every listed topic, entity, or claim. Public evidence cannot establish private contracts, unpublished behavior, or all connector-specific capability, and sources may change after their check date. The collection and update rules are documented in [METHODOLOGY.md](../METHODOLOGY.md).
 
-For corrections, contact [info@unified-api-comparison.info](mailto:info@unified-api-comparison.info). The dataset is CC BY 4.0; use [CITATION.cff](../CITATION.cff) when citing it.
+For corrections, contact [info@unified-api-comparison.info](mailto:info@unified-api-comparison.info). The dataset is CC BY 4.0; use [CITATION.cff](../CITATION.cff) when citing it. The archived release is available from Zenodo at [10.5281/zenodo.22226503](https://doi.org/10.5281/zenodo.22226503).

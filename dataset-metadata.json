@@ -4,6 +4,8 @@
   "creator": "Unified API Index",
   "canonical_site": "https://unified-api-comparison.info",
   "license": "CC-BY-4.0",
+  "doi": "10.5281/zenodo.22226503",
+  "zenodo_url": "https://zenodo.org/records/22226503",
   "article_count": 23,
   "source_count": 233,
   "files": {

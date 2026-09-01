@@ -212,6 +212,31 @@ test('rejects a citation with a different organizational author', async () => {
   );
 });
 
+test('rejects an invalid metadata DOI', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const file = path.join(root, 'dataset-metadata.json');
+      const metadata = JSON.parse(await readFile(file, 'utf8'));
+      metadata.doi = 'not-a-doi';
+      await writeFile(file, `${JSON.stringify(metadata, null, 2)}\n`);
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /metadata DOI.*valid DOI/i),
+  );
+});
+
+test('rejects DOI values that disagree across release metadata', async () => {
+  await withTemporaryRelease(
+    async (root) => {
+      const file = path.join(root, 'CITATION.cff');
+      await writeFile(file, (await readFile(file, 'utf8')).replace(
+        'doi: 10.5281/zenodo.22226503',
+        'doi: 10.5281/zenodo.99999999',
+      ));
+    },
+    async (root) => assert.rejects(() => validateReleaseFiles(root), /citation DOI/i),
+  );
+});
+
 test('accepts a CFF entity author and legacy Zenodo creator without type fields', async () => {
   await withTemporaryRelease(
     async (root) => {
